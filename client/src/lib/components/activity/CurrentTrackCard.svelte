@@ -21,7 +21,8 @@
 
     <div class="flex flex-col gap-1 pt-1 pb-1">
         <p class="font-bold text-sm text-taupe-500">Currently listening to:</p>
-        <p class="font-semibold text-xl text-taupe-200">{track.name} by {genArtistString()}</p>
+        <p class="font-semibold text-xl text-taupe-200">{track.name}</p>
+        <p class="font-bold text-sm text-taupe-500">{genArtistString()}</p>
     </div>
 
 </div> 
