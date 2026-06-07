@@ -15,7 +15,7 @@
     }
 </script>
 
-<div class="w-full min-h-full bg-taupe-800 p-2 flex flex-row gap-8 rounded-md pr-4 pl-4 pt-2 pb-2">
+<div class="w-full min-h-full bg-taupe-800 p-2 flex flex-row items-center gap-8 rounded-md pr-2 pl-2 pt-2 pb-2">
 
     <img class="h-20 w-20 rounded-md" alt="Current Track" src={track.getImage} />
 

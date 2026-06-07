@@ -10,7 +10,7 @@
 
 <div class="bg-taupe-800">
 	<Navbar />
-	<div class="min-h-screen w-full pt-2 pb-2 pr-4 pl-4 flex flex-col gap-2">
+	<div class="min-h-screen w-full py-2 px-4 flex flex-col gap-2">
 		{@render children()}
 	</div>
 </div>

@@ -50,7 +50,7 @@ export class albumItem extends spotifyItem{
     }
 
     get getImage(): string { 
-        return this.images.length == 0 ? '' : this.images[0].url; 
+        return this.images.length === 0 ? '' : this.images[0].url; 
     }
 }
 
@@ -70,5 +70,21 @@ export class trackItem extends spotifyItem {
 
     get getImage(): string { 
         return this.album.getImage; 
+    }
+}
+
+export class spotifyUserItem extends spotifyItem {
+    display_name: string = '';
+    images: imageItem[] = [];
+
+    constructor (data: any) {
+        super(data);
+        
+        this.display_name = data.display_name;
+        this.images = data.images.map((image: any) => new imageItem(image))
+    }
+
+    get getImage(): string {
+        return this.images.length === 0 ? '' : this.images[0].url;
     }
 }

@@ -2,19 +2,12 @@ import { error, json } from '@sveltejs/kit'
 import type { RequestHandler } from  '@sveltejs/kit'
 import { PUBLIC_SPOTIFY_API_BASE_URL } from '$env/static/public'
 
-export const GET: RequestHandler = async ({ cookies, url, fetch }) => {
-
-    const type = url.searchParams.get('type');
-    const uri = url.searchParams.get('uri');
+export const GET: RequestHandler = async ({ cookies, fetch }) => {
     const authToken = cookies.get('spotify_access_token');
-
-    console.log(`Received request for ${type} with uri ${uri}`);
-
-    if (!type || !uri) return error(400, "Missing type or uri query parameter");
-
-    if (!authToken) return error(400, "Missing Spotify access token");
-
-    const endpoint = `${PUBLIC_SPOTIFY_API_BASE_URL}/${type}/${uri}`;
+    if (!authToken)
+        return error(401, "Not connected to Spotify");
+    
+    const endpoint = `${PUBLIC_SPOTIFY_API_BASE_URL}/me`;
 
     const response = await fetch(endpoint, {
         method : "GET",
@@ -25,9 +18,10 @@ export const GET: RequestHandler = async ({ cookies, url, fetch }) => {
 
     if (!response.ok) 
         return error(response.status, `Spotify API returned ${response.status} ${response.statusText}`);
+    
     const data = await response.json();
 
-    console.log(`Fetched data: ${data}`);
+    console.log(`Fetched user data: ${data.display_name}`);
 
     return json(data);
 }
