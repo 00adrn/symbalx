@@ -8,9 +8,9 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="bg-taupe-800">
+<div class="bg-taupe-800 min-h-screen">
 	<Navbar />
-	<div class="min-h-screen w-full py-2 px-4 flex flex-col gap-2">
+	<div class="min-h-screen justify-center items-center py-2 px-4 flex flex-col gap-2">
 		{@render children()}
 	</div>
 </div>
