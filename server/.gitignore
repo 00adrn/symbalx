@@ -1,0 +1,47 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, generated with `go test -c`
+*.test
+
+# Output of the go toolchain
+# https://golang.org/cmd/go/#hdr-Build_and_test_commands
+
+# Binaries for the current project
+/bin/
+
+# Dependencies
+/vendor/
+
+# Go workspace cache
+/pkg/
+
+# Go build cache
+/go.build.cache
+
+# Go module download cache
+/go.mod.cache
+
+# Editor/IDE specific files
+.idea/
+.vscode/
+*~
+*.swp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment variables and local configuration
+.env
+.env.*
+*.local
+
+# Log files
+*.log
+
+# Crash dumps
+*.dmp
