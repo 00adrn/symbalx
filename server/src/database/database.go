@@ -25,11 +25,12 @@ func LoadEnvs() {
 	fmt.Println("Connection String: ", connectionString)
 }
 
-func InitClient() (*pgxpool.Pool, error) {
+func InitializeDatabase() (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(context.Background(), connectionString)
 	if err != nil {
 		return nil, err
 	}
+
 	return pool, nil
 }
 
