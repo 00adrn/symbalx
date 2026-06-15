@@ -2,17 +2,11 @@ import { PRIVATE_BACKEND_KEY, PRIVATE_BACKEND_URL } from "$env/static/private";
 import { error, json } from '@sveltejs/kit'
 import type { RequestHandler } from  '@sveltejs/kit'
 
-class loginData {
-    email: string = '';
-    password: string = '';
-}
 
-export const POST: RequestHandler = async ({ request, fetch }) => {
+export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
     console.log("attempting user login")
 
-    const accountData: loginData = await request.json();
-    console.log(JSON.stringify(accountData));
-
+    const accountData = await request.json();
 
     const response = await fetch(`${PRIVATE_BACKEND_URL}/auth/login`, {
         method: "POST",
@@ -23,11 +17,15 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
         body: JSON.stringify(accountData)
     })
 
-    if (!response.ok) {
-        console.log("error logging in bruhhhh" + response.status);
-        return error(401, "Error creating user account");
-    }
+    if (!response.ok)
+        return error(401, "Error logging in");
 
-    console.log(await response.json());
-    return json({ success: true })
+    const data = await response.json();
+    cookies.set("smblx-session", data.token, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "strict",
+    });
+
+    return json("Success", { status: 200 });
 }

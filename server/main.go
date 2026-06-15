@@ -7,8 +7,6 @@ import (
 )
 
 func main() {
-	database.LoadEnvs()
-	api.LoadEnvs()
 
 	pool, err := database.InitializeDatabase()
 	if err != nil {

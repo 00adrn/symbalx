@@ -1,5 +1,6 @@
 <script lang="ts">
     import { handleLogin, handleSignUp} from '$lib/auth'
+    import { goto } from '$app/navigation';
 
     import LineTextInput from '$lib/components/input/LineTextInput.svelte';
     import PillButton from '$lib/components/navigation/PillButton.svelte';
@@ -16,9 +17,16 @@
         isLogin = !isLogin;
     }
 
-    const onSubmit = () => {
-        isLogin ? handleLogin(emailInput, passwordInput) : 
-        handleSignUp(usernameInput, emailInput, passwordInput);
+    const onSubmit = async () => {
+        if (emailInput === "" || passwordInput === "" || (!isLogin && usernameInput === "")) {
+            return;
+        }
+
+        const res = isLogin ? await handleLogin(emailInput, passwordInput) : await handleSignUp(usernameInput, emailInput, passwordInput);
+
+        if (res) {
+            await goto('/home', { replaceState: true });
+        }
     }
 </script>
 
