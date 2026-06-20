@@ -21,7 +21,5 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
     
     const data = await response.json();
 
-    console.log(`Fetched user data: ${data.display_name}`);
-
     return json(data);
 }

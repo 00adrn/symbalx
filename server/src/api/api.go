@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
@@ -35,12 +36,6 @@ func loadEnvs() (error) {
 	return nil
 }
 
-func prepareResponse(w http.ResponseWriter, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.WriteHeader(statusCode)
-}
-
 type LoginData struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -57,9 +52,92 @@ type RegisterData struct {
 	Password string `json:"password"`
 }
 
+type ProfileData struct {
+	Username 	   string `json:"username"`
+	Email    	   string `json:"email"`
+	// ProfilePicture string `json:"profile_picture"`
+}
+
+func prepareResponse(w http.ResponseWriter, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(statusCode)
+}
+
+func checkAuthorization(w http.ResponseWriter, r *http.Request) bool {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Missing authorization header", http.StatusUnauthorized)
+		return false
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == authHeader {
+		http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+		return false
+	}
+
+	if token != backendKey {
+		http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+		return false
+	}
+
+	return true
+}
+
+func generateToken(userId string, expirationTime time.Time) (string, error) {
+
+	claims := &Claims{
+		UserID: userId,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func readIdFromToken(tokenString string) (string, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+
+	if err != nil || !token.Valid {
+		return "", err
+	}
+
+	return claims.UserID, nil
+}
+
+func readUserToken(r *http.Request) string {
+	authHeader := r.Header.Get("Authorization")
+    if authHeader == "" {
+		return ""
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == authHeader {
+		return ""
+	}
+
+	return token
+}
+
 func accountLogin(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s on /auth/login", r.Method)
 	if r.Method != http.MethodPost {
 		prepareResponse(w, http.StatusMethodNotAllowed)
+		return
+	}
+
+	if (!checkAuthorization(w, r)) {
 		return
 	}
 
@@ -90,15 +168,7 @@ func accountLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
-		UserID: userID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtSecret)
+	tokenString, err := generateToken(userID, expirationTime)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println("Error signing token:", err)
@@ -114,14 +184,13 @@ func accountLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func accountRegister(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s on /auth/register", r.Method)
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	authorization := r.Header.Get("Authorization")
-	if authorization != backendKey {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	if (!checkAuthorization(w, r)) {
 		return
 	}
 
@@ -157,15 +226,7 @@ func accountRegister(w http.ResponseWriter, r *http.Request) {
 	log.Println("User created successfully with ID:", newUserID)
 
 	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &Claims{
-		UserID: newUserID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtSecret)
+	tokenString, err := generateToken(newUserID, expirationTime)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println("Token signage error:", err)
@@ -177,6 +238,35 @@ func accountRegister(w http.ResponseWriter, r *http.Request) {
 	log.Println("User successfully registered")
 }
 
+func getProfile(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s on /user/profile", r.Method)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userToken := readUserToken(r)
+
+	userId, err := readIdFromToken(userToken)
+	if err != nil {
+		http.Error(w, "Invalid JWT Token", http.StatusNotAcceptable)
+		return
+	}
+
+	var userData ProfileData
+	err = databasePool.QueryRow(context.Background(), "SELECT username, email FROM users WHERE user_id = $1", userId).Scan(&userData.Username, &userData.Email)
+	if err != nil {
+		log.Println("Error: Non-real user token")
+	}
+	log.Printf("Read user data for %s\n", userData.Username)
+
+	prepareResponse(w, http.StatusOK)
+	err = json.NewEncoder(w).Encode(map[string]ProfileData{"profile_data": userData})
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
 func InitializeServer(pool *pgxpool.Pool) (error) {
 	err := loadEnvs()
 	if err != nil {
@@ -186,6 +276,7 @@ func InitializeServer(pool *pgxpool.Pool) (error) {
 	databasePool = pool
 	http.HandleFunc("/auth/login", accountLogin)
 	http.HandleFunc("/auth/register", accountRegister)
+	http.HandleFunc("/user/profile", getProfile)
 	http.ListenAndServe(":8080", nil)
 	return nil
 }

@@ -27,7 +27,5 @@ export const GET: RequestHandler = async ({ cookies, url, fetch }) => {
         return error(response.status, `Spotify API returned ${response.status} ${response.statusText}`);
     const data = await response.json();
 
-    console.log(`Fetched data: ${data}`);
-
     return json(data);
 }

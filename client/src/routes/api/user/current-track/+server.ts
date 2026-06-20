@@ -23,7 +23,6 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
         return error(404, "No track currently playing");
 
     const data = await response.json();
-    console.log(`Fetched current track data: ${JSON.stringify(data.item.name)}`);
-
+    
     return json(data.item);
 }

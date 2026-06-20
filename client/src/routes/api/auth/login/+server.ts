@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `${PRIVATE_BACKEND_KEY}`
+            "Authorization": `Bearer ${PRIVATE_BACKEND_KEY}`
         },
         body: JSON.stringify(accountData)
     })

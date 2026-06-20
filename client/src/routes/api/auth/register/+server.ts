@@ -10,7 +10,7 @@ export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `${PRIVATE_BACKEND_KEY}`
+            "Authorization": `Bearer ${PRIVATE_BACKEND_KEY}`
         },
         body: JSON.stringify(accountData)
     })
@@ -19,6 +19,7 @@ export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
         return error(401, "Error creating user account");
 
     const data = await response.json();
+    
     cookies.set("smblx-session", data.token, {
         path: "/",
         httpOnly: true,

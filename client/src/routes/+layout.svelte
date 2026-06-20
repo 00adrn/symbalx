@@ -2,8 +2,11 @@
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import Navbar from '$lib/components/navigation/Navbar.svelte'
+	import { setUserContext } from '$lib/context'
+	import type { LayoutProps } from './$types'
 
-	let { children } = $props();
+	let { data, children }: LayoutProps = $props();
+	setUserContext(data.profileData)
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>

@@ -1,10 +1,12 @@
 <script lang="ts">
     import type { PageProps } from './$types';
+    import { getUserContext } from '$lib/context';
     import CurrentTrackCard from '$lib/components/activity/CurrentTrackCard.svelte';
     import RecentTracks from '$lib/components/activity/RecentTracks.svelte';
 
 
     const { data }: PageProps = $props();
+    const profileData = getUserContext();
 </script>
 
 
@@ -16,7 +18,7 @@
 
             <div class="flex flex-col gap-1 items-center justify-center">
                 <p class="text-xl text-taupe-500">Welcome back,</p>
-                <p class="text-3xl font-bold text-taupe-200">username</p>
+                <p class="text-3xl font-bold text-taupe-200">{profileData ? profileData.username : "username"}</p>
             </div>
         </div>
 
