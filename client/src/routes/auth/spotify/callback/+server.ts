@@ -1,10 +1,11 @@
-import { PRIVATE_SPOTIFY_CLIENT_ID, PRIVATE_SPOTIFY_CLIENT_SECRET} from "$env/static/private"
+import { PRIVATE_SPOTIFY_CLIENT_ID, PRIVATE_SPOTIFY_CLIENT_SECRET, PRIVATE_BACKEND_URL} from "$env/static/private"
 import { PUBLIC_REDIRECT_URL } from "$env/static/public"
 import { redirect } from "@sveltejs/kit"
 import type { RequestHandler } from "./$types"
 
 export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
     const state = cookies.get("state");
+    const sessionToken = cookies.get("smblx-session");
     const code = url.searchParams.get("code");
     const returnedState = url.searchParams.get("state");
 
@@ -27,10 +28,29 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
         body: params
     });
 
-    if (!response.ok) { redirect(302, "/spotify/login"); }
+    if (!response.ok) 
+        redirect(302, "/spotify/login");
 
     const data = await response.json();
     if (data.error || !data.access_token) { redirect(302, "/spotify/login"); }
+    
+    const backendResponse = await fetch(`${PRIVATE_BACKEND_URL}/user/spotify/update`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+            access_token: data.access_token,
+            refresh_token: data.refresh_token,
+        }),
+    });
+
+    if (!backendResponse.ok) {
+        console.error("Error updating backend spotify values.");
+        const errorText = await backendResponse.text();
+        console.error(`Response: ${errorText}`);
+    }
 
     cookies.set("spotify_access_token", data.access_token, {
         path: "/",

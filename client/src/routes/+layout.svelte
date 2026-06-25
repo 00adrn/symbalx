@@ -6,6 +6,7 @@
 	import type { LayoutProps } from './$types'
 
 	let { data, children }: LayoutProps = $props();
+	
 	setUserContext(data.profileData)
 </script>
 

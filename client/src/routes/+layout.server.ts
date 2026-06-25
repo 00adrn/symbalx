@@ -16,6 +16,6 @@ export const load: LayoutServerLoad = async ({ cookies, fetch }) => {
     }
 
     return {
-        profileData: data["profile_data"],
+        profileData: data,
     }
 }

@@ -24,7 +24,8 @@ export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
     cookies.set("smblx-session", data.token, {
         path: "/",
         httpOnly: true,
-        sameSite: "strict",
+        sameSite: "lax",
+        maxAge: 60*60*24*7,
     });
 
     return json("Success", { status: 200 });

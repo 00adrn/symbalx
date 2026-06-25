@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
@@ -24,7 +24,7 @@ var (
 	jwtSecret    []byte
 )
 
-func loadEnvs() (error) {
+func loadEnvs() error {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -53,9 +53,14 @@ type RegisterData struct {
 }
 
 type ProfileData struct {
-	Username 	   string `json:"username"`
-	Email    	   string `json:"email"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 	// ProfilePicture string `json:"profile_picture"`
+}
+
+type SpotifyTokens struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func prepareResponse(w http.ResponseWriter, statusCode int) {
@@ -118,7 +123,7 @@ func readIdFromToken(tokenString string) (string, error) {
 
 func readUserToken(r *http.Request) string {
 	authHeader := r.Header.Get("Authorization")
-    if authHeader == "" {
+	if authHeader == "" {
 		return ""
 	}
 
@@ -137,7 +142,7 @@ func accountLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if (!checkAuthorization(w, r)) {
+	if !checkAuthorization(w, r) {
 		return
 	}
 
@@ -190,7 +195,7 @@ func accountRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if (!checkAuthorization(w, r)) {
+	if !checkAuthorization(w, r) {
 		return
 	}
 
@@ -246,7 +251,6 @@ func getProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userToken := readUserToken(r)
-
 	userId, err := readIdFromToken(userToken)
 	if err != nil {
 		http.Error(w, "Invalid JWT Token", http.StatusNotAcceptable)
@@ -261,13 +265,49 @@ func getProfile(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Read user data for %s\n", userData.Username)
 
 	prepareResponse(w, http.StatusOK)
-	err = json.NewEncoder(w).Encode(map[string]ProfileData{"profile_data": userData})
+	err = json.NewEncoder(w).Encode(userData)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
 
-func InitializeServer(pool *pgxpool.Pool) (error) {
+func updateSpotifyInfo(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s on /spotify/update", r.Method)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userToken := readUserToken(r)
+	userId, err := readIdFromToken(userToken)
+	if err != nil {
+		http.Error(w, "Error: Missing or invalid user token", http.StatusNotAcceptable)
+		return
+	}
+
+	var data SpotifyTokens
+	err = json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		log.Println("Error reading body")
+		return
+	}
+
+	_, err = databasePool.Exec(context.Background(), "INSERT INTO spotify_tokens (user_id, spotify_token, refresh_token) VALUES ($1, $2, $3)", userId, data.AccessToken, data.RefreshToken)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Println("Error updating spotify tokens:", err)
+		return
+	}
+
+	prepareResponse(w, http.StatusOK)
+	err = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	if err != nil {
+		log.Println("Error encoding response:", err)
+	}
+}
+
+func InitializeServer(pool *pgxpool.Pool) error {
 	err := loadEnvs()
 	if err != nil {
 		return err
@@ -277,6 +317,7 @@ func InitializeServer(pool *pgxpool.Pool) (error) {
 	http.HandleFunc("/auth/login", accountLogin)
 	http.HandleFunc("/auth/register", accountRegister)
 	http.HandleFunc("/user/profile", getProfile)
+	http.HandleFunc("/user/spotify/update", updateSpotifyInfo)
 	http.ListenAndServe(":8080", nil)
 	return nil
 }
