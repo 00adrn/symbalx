@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"encoding/base64"
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -20,6 +22,9 @@ import (
 
 var (
 	backendKey   string
+	spotifyAuth  string
+	clientId 	 string
+	clientSecret string
 	databasePool *pgxpool.Pool
 	jwtSecret    []byte
 )
@@ -33,6 +38,9 @@ func loadEnvs() error {
 
 	backendKey = os.Getenv("BACKEND_KEY")
 	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+	spotifyAuth = os.Getenv("SPOTIFY_AUTH_API")
+	clientId = os.Getenv("SPOTIFY_CLIENT_ID")
+	clientSecret = os.Getenv("SPOTIFY_CLIENT_SECRET")
 	return nil
 }
 
@@ -59,6 +67,11 @@ type ProfileData struct {
 }
 
 type SpotifyTokens struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type TokenRefresh struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
@@ -155,7 +168,11 @@ func accountLogin(w http.ResponseWriter, r *http.Request) {
 
 	var storedPassword string
 	var userID string
-	err = databasePool.QueryRow(context.Background(), "SELECT user_id, password_hash FROM users WHERE email = $1", loginData.Email).Scan(&userID, &storedPassword)
+	err = databasePool.QueryRow(
+		context.Background(), 
+		"SELECT user_id, password_hash FROM users WHERE email = $1", 
+		loginData.Email).Scan(&userID, &storedPassword)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
@@ -216,7 +233,11 @@ func accountRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var newUserID string
-	err = databasePool.QueryRow(context.Background(), "INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING user_id", data.Username, data.Email, string(hashedPassword)).Scan(&newUserID)
+	err = databasePool.QueryRow(
+		context.Background(), 
+		"INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING user_id", 
+		data.Username, data.Email, string(hashedPassword)).Scan(&newUserID)
+
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -258,7 +279,11 @@ func getProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userData ProfileData
-	err = databasePool.QueryRow(context.Background(), "SELECT username, email FROM users WHERE user_id = $1", userId).Scan(&userData.Username, &userData.Email)
+	err = databasePool.QueryRow(
+		context.Background(), 
+		"SELECT username, email FROM users WHERE user_id = $1", 
+		userId).Scan(&userData.Username, &userData.Email)
+		
 	if err != nil {
 		log.Println("Error: Non-real user token")
 	}
@@ -293,7 +318,10 @@ func updateSpotifyInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = databasePool.Exec(context.Background(), "INSERT INTO spotify_tokens (user_id, spotify_token, refresh_token) VALUES ($1, $2, $3)", userId, data.AccessToken, data.RefreshToken)
+	_, err = databasePool.Exec(
+		context.Background(), 
+		"INSERT INTO spotify_tokens (user_id, spotify_token, refresh_token) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET spotify_token = $2, refresh_token = $3", 
+		userId, data.AccessToken, data.RefreshToken)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println("Error updating spotify tokens:", err)
@@ -307,6 +335,66 @@ func updateSpotifyInfo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func runTokenRefreshService() {
+
+	for {
+		log.Println("Starting refresh service...")
+
+		rows, _ := databasePool.Query(
+			context.Background(),
+			"SELECT * FROM spotify_tokens",
+		)
+
+		var id, access, refresh string
+		_, err := pgx.ForEachRow(rows, []any{&id, &access, &refresh}, func() error {
+			body := url.Values{}
+			body.Set("grant_type", "refresh_token")
+			body.Set("refresh_token", refresh)
+			body.Set("client_id", clientId)
+
+			req, err := http.NewRequest("POST", spotifyAuth+"/token", strings.NewReader(body.Encode()))
+			if err != nil {
+				return err
+			}
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Authorization", "Basic " + base64.StdEncoding.EncodeToString([]byte(clientId+":"+clientSecret)))
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				log.Println("Error making request token")
+				return err
+			}
+			defer resp.Body.Close()
+
+			var data SpotifyTokens
+			err = json.NewDecoder(resp.Body).Decode(&data)
+			if err != nil {
+				log.Println("Error reading response body")
+				return err
+			}
+
+			_, err = databasePool.Exec(
+				context.Background(), 
+				"UPDATE spotify_tokens SET spotify_token = $1, refresh_token = $2 WHERE user_id = $3", 
+				data.AccessToken, data.RefreshToken, id)
+			if err != nil {
+				log.Println("Error updating the database")
+				return err
+			}
+
+			log.Printf("Successfully refreshed token for user %s", id)
+			return nil
+		})
+		if err != nil {
+			log.Println("Error refreshing tokens")
+			return
+		}
+
+		log.Println("Refresh service sleeping...")
+		time.Sleep(30*60*time.Second)
+	}
+}
+
 func InitializeServer(pool *pgxpool.Pool) error {
 	err := loadEnvs()
 	if err != nil {
@@ -314,6 +402,7 @@ func InitializeServer(pool *pgxpool.Pool) error {
 	}
 
 	databasePool = pool
+	go runTokenRefreshService()
 	http.HandleFunc("/auth/login", accountLogin)
 	http.HandleFunc("/auth/register", accountRegister)
 	http.HandleFunc("/user/profile", getProfile)
