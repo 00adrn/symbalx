@@ -1,9 +1,6 @@
 import type { LayoutServerLoad } from './$types'
 
 export const load: LayoutServerLoad = async ({ cookies, fetch }) => {
-    const token = cookies.get('smblx-session');
-    console.log(token ? "got token" : "no token");
-
     const response = await fetch("/api/user/profile-data", {
         method: "GET"
     });
@@ -12,7 +9,12 @@ export const load: LayoutServerLoad = async ({ cookies, fetch }) => {
 
     if (response.ok) {
         data = await response.json();
-        console.log(`Got data: ${JSON.stringify(data)}`)
+        cookies.set("spotify_access_token", data.access_token, {
+            path: "/",
+            httpOnly: true,
+            sameSite: "lax",
+            maxAge: 60 * 60,
+        });
     }
 
     return {

@@ -7,7 +7,7 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
     if (!sessionToken)
         return error(400, "No session token found");
 
-    console.log("Attempting to fetch user data...");
+    //console.log("Attempting to fetch user data...");
 
     const response = await fetch(`${PRIVATE_BACKEND_URL}/user/profile`, {
         method: "GET",
@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
 
     const data = await response.json();
 
-    console.log(`Successfully read data: ${JSON.stringify(data)}`);
+    //console.log(`Successfully read data: ${JSON.stringify(data)}`);
 
     return json(data)
 }

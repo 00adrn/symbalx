@@ -52,13 +52,6 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
         console.error(`Response: ${errorText}`);
     }
 
-    cookies.set("spotify_access_token", data.access_token, {
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-        maxAge: 60 * 60,
-    });
-
     console.log(`Spotify auth succeeded with token ${data.access_token}!`);
     redirect(302, "/home");
 }

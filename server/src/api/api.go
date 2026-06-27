@@ -61,17 +61,13 @@ type RegisterData struct {
 }
 
 type ProfileData struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	Username 	string `json:"username"`
+	Email    	string `json:"email"`
+	AccessToken string `json:"access_token"`
 	// ProfilePicture string `json:"profile_picture"`
 }
 
 type SpotifyTokens struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-type TokenRefresh struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
@@ -283,10 +279,19 @@ func getProfile(w http.ResponseWriter, r *http.Request) {
 		context.Background(), 
 		"SELECT username, email FROM users WHERE user_id = $1", 
 		userId).Scan(&userData.Username, &userData.Email)
-		
 	if err != nil {
-		log.Println("Error: Non-real user token")
+		http.Error(w, "ID not found", http.StatusNotFound)
+		return
 	}
+
+	err = databasePool.QueryRow(
+		context.Background(), 
+		"SELECT spotify_token FROM spotify_tokens WHERE user_id = $1", 
+		userId).Scan(&userData.AccessToken)
+	if err != nil {
+		log.Printf("Spotify Access token for %s not found", userData.Username)
+	}
+
 	log.Printf("Read user data for %s\n", userData.Username)
 
 	prepareResponse(w, http.StatusOK)
@@ -320,7 +325,7 @@ func updateSpotifyInfo(w http.ResponseWriter, r *http.Request) {
 
 	_, err = databasePool.Exec(
 		context.Background(), 
-		"INSERT INTO spotify_tokens (user_id, spotify_token, refresh_token) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET spotify_token = $2, refresh_token = $3", 
+		"INSERT INTO spotify_tokens (user_id, spotify_token, refresh_token) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET spotify_token = EXCLUDED.spotify_token, refresh_token = EXCLUDED.refresh_token", 
 		userId, data.AccessToken, data.RefreshToken)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -393,6 +398,10 @@ func runTokenRefreshService() {
 		log.Println("Refresh service sleeping...")
 		time.Sleep(30*60*time.Second)
 	}
+}
+
+func runAnalyticsService() {
+	
 }
 
 func InitializeServer(pool *pgxpool.Pool) error {

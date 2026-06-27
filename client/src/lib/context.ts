@@ -1,8 +1,9 @@
 import { createContext } from 'svelte'
 
-interface User {
+interface UserContext {
     username: string;
     email: string;
+    access_token: string;
 }
 
-export const [getUserContext, setUserContext] = createContext<User | null>();
+export const [getUserContext, setUserContext] = createContext<UserContext | null>();
