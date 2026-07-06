@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+	"fmt"
+	"io"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
@@ -23,6 +25,7 @@ import (
 var (
 	backendKey   string
 	spotifyAuth  string
+	spotifyApi   string
 	clientId 	 string
 	clientSecret string
 	databasePool *pgxpool.Pool
@@ -39,6 +42,7 @@ func loadEnvs() error {
 	backendKey = os.Getenv("BACKEND_KEY")
 	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 	spotifyAuth = os.Getenv("SPOTIFY_AUTH_API")
+	spotifyApi = os.Getenv("SPOTIFY_API")
 	clientId = os.Getenv("SPOTIFY_CLIENT_ID")
 	clientSecret = os.Getenv("SPOTIFY_CLIENT_SECRET")
 	return nil
@@ -130,7 +134,7 @@ func readIdFromToken(tokenString string) (string, error) {
 	return claims.UserID, nil
 }
 
-func readUserToken(r *http.Request) string {
+func readUserToken(r *http.Request) (string) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return ""
@@ -142,6 +146,18 @@ func readUserToken(r *http.Request) string {
 	}
 
 	return token
+}
+
+func printHttpResponse(resp *http.Response) (error) {
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Error reading response body")
+		return err
+	}
+
+	bodyString := string(bodyBytes)
+	log.Printf("Spotify API response: %s", bodyString)
+	return nil
 }
 
 func accountLogin(w http.ResponseWriter, r *http.Request) {
@@ -347,7 +363,7 @@ func runTokenRefreshService() {
 
 		rows, _ := databasePool.Query(
 			context.Background(),
-			"SELECT * FROM spotify_tokens",
+			"SELECT user_id, spotify_token, refresh_token FROM spotify_tokens",
 		)
 
 		var id, access, refresh string
@@ -380,11 +396,22 @@ func runTokenRefreshService() {
 
 			_, err = databasePool.Exec(
 				context.Background(), 
-				"UPDATE spotify_tokens SET spotify_token = $1, refresh_token = $2 WHERE user_id = $3", 
-				data.AccessToken, data.RefreshToken, id)
+				"UPDATE spotify_tokens SET spotify_token = $1 WHERE user_id = $2", 
+				data.AccessToken, id)
 			if err != nil {
 				log.Println("Error updating the database")
 				return err
+			}
+
+			if data.RefreshToken != "" {
+				_, err = databasePool.Exec(
+					context.Background(), 
+					"UPDATE spotify_tokens SET refresh_token = $1 WHERE user_id = $2", 
+					data.RefreshToken, id)
+				if err != nil {
+					log.Println("Error updating the database")
+					return err
+				}
 			}
 
 			log.Printf("Successfully refreshed token for user %s", id)
@@ -400,8 +427,56 @@ func runTokenRefreshService() {
 	}
 }
 
-func runAnalyticsService() {
-	
+func runTrackHistoryService() {
+	for {
+		log.Println("Starting refresh service...")
+
+		rows, _ := databasePool.Query(
+			context.Background(),
+			"SELECT user_id, spotify_token, last_checked FROM spotify_tokens",
+		)
+
+		var userId, spotifyToken string
+		var lastChecked time.Time
+		_, err := pgx.ForEachRow(rows, []any{&userId, &spotifyToken, &lastChecked}, func() error {
+
+			req, err := http.NewRequest("GET", spotifyApi+"/me/player/recently-played?after=" + fmt.Sprintf("%d", lastChecked.UnixMilli()), nil)
+			if err != nil {
+				log.Println("Error creating request")
+				return err
+			}
+
+			req.Header.Set("Authorization", "Bearer " + spotifyToken)
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				log.Println("Error making request to Spotify API")
+				return err
+			}
+			defer resp.Body.Close()
+
+			err = printHttpResponse(resp)
+			if err != nil {
+				log.Println("Error printing response")
+				return err
+			}
+			
+			if resp.StatusCode != http.StatusOK {
+				log.Printf("Spotify API returned status code %d", resp.StatusCode)
+				return nil
+			}
+
+			return nil
+		})
+		if err != nil {
+			log.Println("Error running track history service")
+			log.Println(err)
+			return
+		}
+
+		log.Println("Track history service sleeping...")
+		time.Sleep(30*60*time.Second)
+	}
 }
 
 func InitializeServer(pool *pgxpool.Pool) error {
@@ -412,6 +487,7 @@ func InitializeServer(pool *pgxpool.Pool) error {
 
 	databasePool = pool
 	go runTokenRefreshService()
+	go runTrackHistoryService()
 	http.HandleFunc("/auth/login", accountLogin)
 	http.HandleFunc("/auth/register", accountRegister)
 	http.HandleFunc("/user/profile", getProfile)
