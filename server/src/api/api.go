@@ -2,17 +2,17 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
-	"fmt"
-	"io"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
@@ -26,10 +26,11 @@ var (
 	backendKey   string
 	spotifyAuth  string
 	spotifyApi   string
-	clientId 	 string
+	clientId     string
 	clientSecret string
 	databasePool *pgxpool.Pool
 	jwtSecret    []byte
+	readLock     bool
 )
 
 func loadEnvs() error {
@@ -65,8 +66,8 @@ type RegisterData struct {
 }
 
 type ProfileData struct {
-	Username 	string `json:"username"`
-	Email    	string `json:"email"`
+	Username    string `json:"username"`
+	Email       string `json:"email"`
 	AccessToken string `json:"access_token"`
 	// ProfilePicture string `json:"profile_picture"`
 }
@@ -74,6 +75,18 @@ type ProfileData struct {
 type SpotifyTokens struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+}
+
+type spotifyTrackUri struct {
+	Uri string `json:"uri"`
+}
+
+type spotifyTrackItem struct {
+	Track spotifyTrackUri `json:"track"`
+}
+
+type SpotifyTrackHistory struct {
+	Items []spotifyTrackItem `json:"items"`
 }
 
 func prepareResponse(w http.ResponseWriter, statusCode int) {
@@ -134,7 +147,7 @@ func readIdFromToken(tokenString string) (string, error) {
 	return claims.UserID, nil
 }
 
-func readUserToken(r *http.Request) (string) {
+func readUserToken(r *http.Request) string {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return ""
@@ -148,7 +161,7 @@ func readUserToken(r *http.Request) (string) {
 	return token
 }
 
-func printHttpResponse(resp *http.Response) (error) {
+func printHttpResponse(resp *http.Response) error {
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Error reading response body")
@@ -181,8 +194,8 @@ func accountLogin(w http.ResponseWriter, r *http.Request) {
 	var storedPassword string
 	var userID string
 	err = databasePool.QueryRow(
-		context.Background(), 
-		"SELECT user_id, password_hash FROM users WHERE email = $1", 
+		context.Background(),
+		"SELECT user_id, password_hash FROM users WHERE email = $1",
 		loginData.Email).Scan(&userID, &storedPassword)
 
 	if err != nil {
@@ -246,8 +259,8 @@ func accountRegister(w http.ResponseWriter, r *http.Request) {
 
 	var newUserID string
 	err = databasePool.QueryRow(
-		context.Background(), 
-		"INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING user_id", 
+		context.Background(),
+		"INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING user_id",
 		data.Username, data.Email, string(hashedPassword)).Scan(&newUserID)
 
 	if err != nil {
@@ -292,8 +305,8 @@ func getProfile(w http.ResponseWriter, r *http.Request) {
 
 	var userData ProfileData
 	err = databasePool.QueryRow(
-		context.Background(), 
-		"SELECT username, email FROM users WHERE user_id = $1", 
+		context.Background(),
+		"SELECT username, email FROM users WHERE user_id = $1",
 		userId).Scan(&userData.Username, &userData.Email)
 	if err != nil {
 		http.Error(w, "ID not found", http.StatusNotFound)
@@ -301,8 +314,8 @@ func getProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = databasePool.QueryRow(
-		context.Background(), 
-		"SELECT spotify_token FROM spotify_tokens WHERE user_id = $1", 
+		context.Background(),
+		"SELECT spotify_token FROM spotify_tokens WHERE user_id = $1",
 		userId).Scan(&userData.AccessToken)
 	if err != nil {
 		log.Printf("Spotify Access token for %s not found", userData.Username)
@@ -340,8 +353,8 @@ func updateSpotifyInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = databasePool.Exec(
-		context.Background(), 
-		"INSERT INTO spotify_tokens (user_id, spotify_token, refresh_token) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET spotify_token = EXCLUDED.spotify_token, refresh_token = EXCLUDED.refresh_token", 
+		context.Background(),
+		"INSERT INTO spotify_tokens (user_id, spotify_token, refresh_token) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET spotify_token = EXCLUDED.spotify_token, refresh_token = EXCLUDED.refresh_token",
 		userId, data.AccessToken, data.RefreshToken)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -359,6 +372,12 @@ func updateSpotifyInfo(w http.ResponseWriter, r *http.Request) {
 func runTokenRefreshService() {
 
 	for {
+		if readLock {
+			log.Println("Refresh service is locked, waiting...")
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		readLock = true
 		log.Println("Starting refresh service...")
 
 		rows, _ := databasePool.Query(
@@ -378,7 +397,7 @@ func runTokenRefreshService() {
 				return err
 			}
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			req.Header.Set("Authorization", "Basic " + base64.StdEncoding.EncodeToString([]byte(clientId+":"+clientSecret)))
+			req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(clientId+":"+clientSecret)))
 
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
@@ -395,8 +414,8 @@ func runTokenRefreshService() {
 			}
 
 			_, err = databasePool.Exec(
-				context.Background(), 
-				"UPDATE spotify_tokens SET spotify_token = $1 WHERE user_id = $2", 
+				context.Background(),
+				"UPDATE spotify_tokens SET spotify_token = $1 WHERE user_id = $2",
 				data.AccessToken, id)
 			if err != nil {
 				log.Println("Error updating the database")
@@ -405,8 +424,8 @@ func runTokenRefreshService() {
 
 			if data.RefreshToken != "" {
 				_, err = databasePool.Exec(
-					context.Background(), 
-					"UPDATE spotify_tokens SET refresh_token = $1 WHERE user_id = $2", 
+					context.Background(),
+					"UPDATE spotify_tokens SET refresh_token = $1 WHERE user_id = $2",
 					data.RefreshToken, id)
 				if err != nil {
 					log.Println("Error updating the database")
@@ -419,16 +438,24 @@ func runTokenRefreshService() {
 		})
 		if err != nil {
 			log.Println("Error refreshing tokens")
+			readLock = false
 			return
 		}
 
 		log.Println("Refresh service sleeping...")
-		time.Sleep(30*60*time.Second)
+		readLock = false
+		time.Sleep(30 * 60 * time.Second)
 	}
 }
 
 func runTrackHistoryService() {
 	for {
+		if readLock {
+			log.Println("Track history service is locked, waiting...")
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		readLock = true
 		log.Println("Starting refresh service...")
 
 		rows, _ := databasePool.Query(
@@ -436,17 +463,27 @@ func runTrackHistoryService() {
 			"SELECT user_id, spotify_token, last_checked FROM spotify_tokens",
 		)
 
+		_, err := databasePool.Exec(
+			context.Background(),
+			"UPDATE spotify_tokens SET last_checked = NOW()",
+		)
+		if err != nil {
+			log.Println("Error updating last_checked")
+			readLock = false
+			return
+		}
+
 		var userId, spotifyToken string
 		var lastChecked time.Time
-		_, err := pgx.ForEachRow(rows, []any{&userId, &spotifyToken, &lastChecked}, func() error {
+		_, err = pgx.ForEachRow(rows, []any{&userId, &spotifyToken, &lastChecked}, func() error {
 
-			req, err := http.NewRequest("GET", spotifyApi+"/me/player/recently-played?after=" + fmt.Sprintf("%d", lastChecked.UnixMilli()), nil)
+			req, err := http.NewRequest("GET", spotifyApi+"/me/player/recently-played?after="+fmt.Sprintf("%d", lastChecked.UnixMilli()), nil)
 			if err != nil {
 				log.Println("Error creating request")
 				return err
 			}
 
-			req.Header.Set("Authorization", "Bearer " + spotifyToken)
+			req.Header.Set("Authorization", "Bearer "+spotifyToken)
 
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
@@ -455,27 +492,49 @@ func runTrackHistoryService() {
 			}
 			defer resp.Body.Close()
 
-			err = printHttpResponse(resp)
-			if err != nil {
-				log.Println("Error printing response")
-				return err
-			}
-			
 			if resp.StatusCode != http.StatusOK {
 				log.Printf("Spotify API returned status code %d", resp.StatusCode)
-				return nil
+				return fmt.Errorf("Spotify API returned status code %d", resp.StatusCode)
+			}
+
+			// err = printHttpResponse(resp)
+			// if err != nil {
+			// 	log.Println("Error printing response")
+			// 	return err
+			// }
+
+			var trackHistory SpotifyTrackHistory
+			err = json.NewDecoder(resp.Body).Decode(&trackHistory)
+			if err != nil {
+				log.Println("Error decoding track history")
+				return err
+			}
+
+			for i, item := range trackHistory.Items {
+				log.Printf("Track %d: %s", i, item.Track.Uri)
+				_, err = databasePool.Exec(
+					context.Background(),
+					"INSERT INTO spotify_track_history (user_id, track_id, date_listened) VALUES ($1, $2, NOW())",
+					userId, item.Track.Uri,
+				)
+				if err != nil {
+					log.Println("Error inserting track into database")
+					return err
+				}
 			}
 
 			return nil
 		})
 		if err != nil {
 			log.Println("Error running track history service")
+			readLock = false
 			log.Println(err)
 			return
 		}
 
 		log.Println("Track history service sleeping...")
-		time.Sleep(30*60*time.Second)
+		readLock = false
+		time.Sleep(30 * 60 * time.Second)
 	}
 }
 
@@ -486,6 +545,7 @@ func InitializeServer(pool *pgxpool.Pool) error {
 	}
 
 	databasePool = pool
+
 	go runTokenRefreshService()
 	go runTrackHistoryService()
 	http.HandleFunc("/auth/login", accountLogin)
