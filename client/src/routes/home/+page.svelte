@@ -32,7 +32,7 @@
     
     <div class="w-full">
     {#if data.currentTrackData}
-        <RecentTracks tracks={[data.currentTrackData, data.currentTrackData, data.currentTrackData, ]}/>
+        <RecentTracks tracks={data.recentTracksData}/>
     {/if}
     </div>
     

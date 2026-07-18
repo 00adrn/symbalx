@@ -5,7 +5,7 @@ import { PRIVATE_SPOTIFY_CLIENT_ID } from '$env/static/private'
 
 export const GET: RequestHandler = async ({ cookies }) => {
     const state = createRandomString(64);
-    const scope = "user-read-currently-playing playlist-read-private playlist-read-collaborative user-follow-read user-read-private";
+    const scope = "user-read-email user-read-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-follow-read user-read-private user-read-recently-played user-top-read user-library-read user-read-playback-position user-read-playback-state user-modify-playback-state user-read-currently-playing";
 
     const params = new URLSearchParams();
     params.append("response_type", "code");
