@@ -8,8 +8,6 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
     if (!sessionToken)
         return error(400, "No session token found");
 
-    //console.log("Attempting to fetch recent tracks...");
-
     const response = await fetch(`${PRIVATE_BACKEND_URL}/user/recent-tracks`, {
         method: "GET",
         headers: {

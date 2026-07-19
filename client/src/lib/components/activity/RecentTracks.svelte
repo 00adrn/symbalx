@@ -15,11 +15,11 @@
     }
 </script>
 
-<div class="w-full bg-taupe-800 p-2 flex flex-row items-center gap-8 rounded-md px-2 py-1">
+{#if tracks}
+<div class="w-full bg-taupe-800 flex flex-row items-center gap-8 rounded-md px-1 py-.5">
 
-
-    <div class="flex flex-col gap-1 px-1 py-1 w-full">
-        <p class="text-xl text-taupe-500">Recent tracks:</p>
+    <div class="flex flex-col gap-2 px-1 py-2 w-full">
+        <!-- <p class="text-xl text-taupe-500">Recent tracks:</p> -->
         {#each tracks as track, index}
         <div class="w-full flex flex-row items-center justify-between">
             <img class="h-18 w-18 rounded-md" alt="Current Track" src={track.getImage} />
@@ -28,5 +28,5 @@
         </div>
         {/each}
     </div>
-
 </div> 
+{/if}

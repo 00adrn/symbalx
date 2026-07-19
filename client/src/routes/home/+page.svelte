@@ -22,18 +22,14 @@
             </div>
         </div>
 
-    {#if data.currentTrackData}
-        <CurrentTrackCard track={data.currentTrackData} />
-    {/if}
+    <CurrentTrackCard track={data.currentTrackData} />
     
     </div>
 
     <div class="w-full flex flex-row gap-2">
     
     <div class="w-full">
-    {#if data.currentTrackData}
         <RecentTracks tracks={data.recentTracksData}/>
-    {/if}
     </div>
     
     </div>

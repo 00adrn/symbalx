@@ -8,9 +8,8 @@ export const GET: RequestHandler = async ({ cookies, url, fetch }) => {
     const uri = url.searchParams.get('uri');
     const authToken = cookies.get('spotify_access_token');
 
-
-    console.log(`Received request for ${type} with uri ${uri}`);
-    console.log(authToken);
+    //console.log(`Received request for ${type} with uri ${uri}`);
+    //console.log(authToken);
 
     if (!type || !uri) return error(400, "Missing type or uri query parameter");
 
