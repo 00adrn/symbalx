@@ -3,7 +3,7 @@
     import { getUserContext } from '$lib/context';
     import CurrentTrackCard from '$lib/components/activity/CurrentTrackCard.svelte';
     import RecentTracks from '$lib/components/activity/RecentTracks.svelte';
-
+    import { Plot, BarX } from 'svelteplot'     
 
     const { data }: PageProps = $props();
     const profileData = getUserContext();
@@ -22,15 +22,15 @@
             </div>
         </div>
 
-    <CurrentTrackCard track={data.currentTrackData} />
-    
+        <CurrentTrackCard track={data.currentTrackData} />
     </div>
 
+    
     <div class="w-full flex flex-row gap-2">
     
-    <div class="w-full">
-        <RecentTracks tracks={data.recentTracksData}/>
-    </div>
+        <div class="w-full">
+            <RecentTracks tracks={data.recentTracksData}/>
+        </div>
     
     </div>
 </div>

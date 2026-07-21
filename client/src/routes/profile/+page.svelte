@@ -17,7 +17,7 @@
     <div class="flex flex-row itms-center gap-2">
         <p class="font-bold text-taupe-200 text-4xl">{profileData ? profileData.username : "username"}</p>
     </div>
-
+    
     <div class="flex flex-row justify-center gap-2">
         <SpotifyDataCard spotifyProfileData={data.spotifyProfileData} />
     </div>

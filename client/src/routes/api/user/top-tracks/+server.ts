@@ -8,7 +8,7 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
     if (!sessionToken)
         return error(400, "No session token found");
 
-    const response = await fetch(`${PRIVATE_BACKEND_URL}/user/recent-tracks`, {
+    const response = await fetch(`${PRIVATE_BACKEND_URL}/user/top-tracks`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -22,19 +22,13 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
     }
 
     const data = await response.json();
-    const trackUris: string[] = data.tracks.map((track: any) => track.uri);
-
+    
     let tracks: trackItem[] = [];
+    data.tracks.map(async (track: any, index: number) => {
+        const cleanUri = track.uri.split(':').pop();
+        console.log(`Track #${index}: ${cleanUri} | Count: ${track.count}`)
 
-    for (const uri of trackUris) {
-        const cleanUri = uri.split(':').pop();
-
-        const trackResponse = await fetch(`/api/spotify/fetch?type=tracks&uri=${cleanUri}`, {});
-
-        const tdata = await trackResponse.json();
-        //console.log(`Fetched track data for URI ${uri}:`, tdata);
-        tracks.push(new trackItem(tdata));
-    }
+    });
 
     return json(tracks)
 }

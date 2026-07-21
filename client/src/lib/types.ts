@@ -1,6 +1,7 @@
 export class navButton {
     text: string = '';
     redirect: string = '';
+    image: any;
 }
 
 export class imageItem {

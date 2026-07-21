@@ -1,20 +1,21 @@
 <script lang="ts">
     import type { navButton } from '$lib/types'
     import NavButton from './NavButton.svelte'
+    import homeIcon from '$lib/assets/Vector.svg'
+    import profileIcon from '$lib/assets/Group.svg'
 
     const buttons: navButton[] = $state([
         {
             text: "Home",
-            redirect: "/home"
+            redirect: "/home",
+            image: homeIcon
+            
         },
         {
             text: "Profile",
-            redirect: "/profile"
+            redirect: "/profile",
+            image: profileIcon
         },
-        {
-            text: "spotifyauthlogin",
-            redirect: "/auth/spotify/login"
-        }
     ]);    
 </script>
 
@@ -26,7 +27,7 @@
 
     <div class="flex flex-row gap-2">
         {#each buttons as button}
-            <NavButton text={button.text} redirect={button.redirect} />
+            <NavButton text={button.text} redirect={button.redirect} image={button.image}/>
         {/each}
     </div>
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"slices"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
@@ -32,6 +33,7 @@ func Init(pool *pgxpool.Pool, bk string, jwtKey []byte) {
 	http.HandleFunc("/user/profile", GetProfile)
 	http.HandleFunc("/user/spotify/update", UpdateSpotifyInfo)
 	http.HandleFunc("/user/recent-tracks", GetRecentTracks)
+	http.HandleFunc("/user/top-tracks", GetTopTracks)
 }
 
 type LoginData struct {
@@ -71,6 +73,11 @@ type spotifyTrackItem struct {
 
 type SpotifyTrackHistory struct {
 	Items []spotifyTrackItem `json:"items"`
+}
+
+type trackCountById struct {
+	Uri   string `json:"uri"`
+	Count int    `json:"count"`
 }
 
 func prepareResponse(w http.ResponseWriter, statusCode int) {
@@ -342,6 +349,64 @@ func GetRecentTracks(w http.ResponseWriter, r *http.Request) {
 
 	prepareResponse(w, http.StatusOK)
 	err = json.NewEncoder(w).Encode(map[string][]spotifyTrackUri{"tracks": tracks})
+	if err != nil {
+		log.Println("Error encoding response:", err)
+	}
+}
+
+func GetTopTracks(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s on /user/top-tracks", r.Method)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userToken := readUserToken(r)
+	userId, err := readIdFromToken(userToken)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusNotAcceptable)
+		return
+	}
+
+	rows, err := databasePool.Query(
+		context.Background(),
+		"SELECT track_id FROM spotify_track_history WHERE user_id = $1",
+		userId,
+	)
+	if err != nil { 
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Println("Error fetching recent tracks:", err)
+		return
+	}
+	defer rows.Close()
+
+	indexMap := make(map[string]int)
+	var tracks []trackCountById
+
+	var currentTrack string
+	_, err = pgx.ForEachRow(rows, []any{&currentTrack}, func () error {
+
+		if _, ok := indexMap[currentTrack]; ok {
+			tracks[indexMap[currentTrack]].Count++
+		} else {
+			tracks = append(tracks, trackCountById{ Uri: currentTrack, Count: 1})
+			indexMap[currentTrack] = len(tracks) - 1
+		}
+
+		return nil
+	})
+
+	slices.SortFunc(tracks, func(a trackCountById, b trackCountById) int {
+		return b.Count - a.Count
+	})
+
+	top := tracks
+	if len(top) > 5 {
+		top = top[:5]
+	}
+
+	prepareResponse(w, http.StatusOK)
+	err = json.NewEncoder(w).Encode(map[string][]trackCountById{"tracks": top})
 	if err != nil {
 		log.Println("Error encoding response:", err)
 	}
