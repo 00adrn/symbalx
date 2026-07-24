@@ -2,9 +2,17 @@
     import type { PageProps } from './$types';
     import { getUserContext } from '$lib/context';
     import SpotifyDataCard from '$lib/components/profileInfo/SpotifyDataCard.svelte';
+    import { onMount } from 'svelte'
+    import { goto } from "$app/navigation"
 
     const { data }: PageProps = $props();
     const profileData = getUserContext();
+
+    onMount(() => {
+        if (!profileData){
+            goto("/auth/login")
+        }
+    });
 </script>
 
 <div class="w-3/5 h-full bg-taupe-700 p-2 flex flex-col gap-2 rounded-md min-h-screen ">

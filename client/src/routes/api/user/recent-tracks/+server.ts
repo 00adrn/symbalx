@@ -32,7 +32,6 @@ export const GET: RequestHandler = async ({ cookies, fetch }) => {
         const trackResponse = await fetch(`/api/spotify/fetch?type=tracks&uri=${cleanUri}`, {});
 
         const tdata = await trackResponse.json();
-        //console.log(`Fetched track data for URI ${uri}:`, tdata);
         tracks.push(new trackItem(tdata));
     }
 

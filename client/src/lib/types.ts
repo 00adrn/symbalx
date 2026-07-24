@@ -59,14 +59,17 @@ export class trackItem extends spotifyItem {
     album: albumItem = new albumItem();
     artists: artistItem[] = [];
     images: imageItem[] = [];
+    timesListened: number = 0;
 
-    constructor (data?: any) {
+    constructor (data?: any, timesListened?: number) {
         super(data);
         if (!data) return;
 
         this.album = new albumItem(data.album);
         this.artists = data.artists.map((artist: any) => new artistItem(artist));
-        this.images = data.album.images.map((image: any) => new imageItem(image))
+        this.images = data.album.images.map((image: any) => new imageItem(image));
+
+        this.timesListened = timesListened ?? data.timesListened ?? data.count ?? 0;
     }
 
     get getImage(): string { 
@@ -87,5 +90,15 @@ export class spotifyUserItem extends spotifyItem {
 
     get getImage(): string {
         return this.images.length === 0 ? '' : this.images[0].url;
+    }
+}
+
+export class dataItem {
+    key: any = "";
+    value: any = "";
+
+    constructor(key: any, value: any) {
+        this.key = key
+        this.value = value
     }
 }

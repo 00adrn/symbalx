@@ -1,12 +1,20 @@
 <script lang="ts">
     import type { PageProps } from './$types';
+    import { dataItem, trackItem } from '$lib/types'
     import { getUserContext } from '$lib/context';
     import CurrentTrackCard from '$lib/components/activity/CurrentTrackCard.svelte';
     import RecentTracks from '$lib/components/activity/RecentTracks.svelte';
-    import { Plot, BarX } from 'svelteplot'     
+    import { BarChart } from 'layerchart';
+	import { nonpassive } from 'svelte/legacy';
 
     const { data }: PageProps = $props();
     const profileData = getUserContext();
+
+    const topTrackChartData: dataItem[] = data.topTracksData?.map((track: trackItem) => {
+        return new dataItem(track.name, track.timesListened);
+    });
+
+
 </script>
 
 
@@ -23,6 +31,39 @@
         </div>
 
         <CurrentTrackCard track={data.currentTrackData} />
+    </div>
+
+    <div class="w-full flex flex-row gap-2">
+    
+        <BarChart
+            data={topTrackChartData}
+            orientation="horizontal"
+            x="value"
+            y="key"
+            axis="y"
+            rule={false}
+            padding={{ left: 4, bottom: 20, top: 20, right: 4 }}
+            height={500}
+            labels={true}
+            props={{
+                labels: {
+                    textAnchor: 'end',
+                    fill: 'white',
+                },
+                yAxis: {
+                    tickLabelProps: {
+                        textAnchor: "start",
+                        dx: 10,
+                        class: "text-sm text-taupe-200",
+                    }
+                },
+                bars: {
+                    stroke: 'none',
+                    height: 50,
+                }
+            }}
+        />
+    
     </div>
 
     
