@@ -4,6 +4,7 @@
     import SpotifyDataCard from '$lib/components/profileInfo/SpotifyDataCard.svelte';
     import { onMount } from 'svelte'
     import { goto } from "$app/navigation"
+    import * as Avatar from "$lib/components/ui/avatar/index.js"
 
     const { data }: PageProps = $props();
     const profileData = getUserContext();
@@ -15,13 +16,13 @@
     });
 </script>
 
-<div class="w-3/5 h-full bg-taupe-700 p-2 flex flex-col gap-2 rounded-md min-h-screen ">
+<div class="w-4/5 h-full bg-taupe-700 p-2 flex flex-col gap-2 rounded-md min-h-screen ">
 
-    <div class="flex flex-row items-center gap-2">
-        <div class="w-full">
-            <img class="bg-black rounded-full h-24 w-24"src="" alt="pfp" />
-        </div>
-    </div>
+    <Avatar.Root class="w-24 h-24">
+        <Avatar.Image src="" alt="profile picture" />
+        <Avatar.Fallback>{profileData ? profileData.username[0] : "username"}</Avatar.Fallback>
+    </Avatar.Root>
+
     <div class="flex flex-row itms-center gap-2">
         <p class="font-bold text-taupe-200 text-4xl">{profileData ? profileData.username : "username"}</p>
     </div>

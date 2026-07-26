@@ -130,9 +130,9 @@
 }
 
 .lc-root-container {
-	--color-primary: var(--color-zinc-900);
-	--color-surface-100: var(--color-taupe-300);
-	--color-surface-200: var(--color-neutral-200);
-	--color-surface-300: var(--color-neutral-400);
-	--color-surface-content: var(--color-neutral-900);
+	--color-primary: var(--color-taupe-600);
+	--color-surface-100: var(--color-taupe-800);
+	--color-surface-200: var(--color-taupe-900);
+	--color-surface-300: var(--color-taupe-900);
+	--color-surface-content: var(--color-neutral-100);
 }

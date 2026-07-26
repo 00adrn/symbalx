@@ -4,16 +4,33 @@
 	import Navbar from '$lib/components/navigation/Navbar.svelte'
 	import { setUserContext } from '$lib/context'
 	import type { LayoutProps } from './$types'
+	import type { navButton } from '$lib/types'
+    import homeIcon from '$lib/assets/Vector.svg'
+    import profileIcon from '$lib/assets/Group.svg'
+
 
 	let { data, children }: LayoutProps = $props();
 	
 	setUserContext(data.profileData)
+
+	const buttons: navButton[] = $state([
+        {
+            text: "Home",
+            redirect: "/home",
+			image: homeIcon
+        },
+        {
+            text: data.profileData ? "Profile" : "Login",
+            redirect: data.profileData ? "/profile" : "/auth/login",
+			image: profileIcon
+        },
+    ]);  
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
 <div class="bg-taupe-800 min-h-screen">
-	<Navbar />
+	<Navbar buttons={buttons}/>
 	<div class="min-h-screen justify-center items-center py-2 px-4 flex flex-col gap-2">
 		{@render children()}
 	</div>

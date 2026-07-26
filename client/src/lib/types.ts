@@ -34,6 +34,9 @@ class spotifyItem {
 
 export class artistItem extends spotifyItem {
     
+    constructor (data?: any) {
+        super(data)
+    }
 }
 
 export class albumItem extends spotifyItem{
@@ -74,6 +77,20 @@ export class trackItem extends spotifyItem {
 
     get getImage(): string { 
         return this.album.getImage; 
+    }
+
+    get getArtistString(): string {
+        let str = "";
+        
+        this.artists.map((artist, index) => {
+            str += artist.name;
+
+            if (index != this.artists.length - 1) {
+                str += ", ";
+            }
+        });
+
+        return str;
     }
 }
 

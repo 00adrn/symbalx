@@ -2,17 +2,6 @@
     import { trackItem } from '$lib/types'
 
     const { tracks }: { tracks: trackItem[] } = $props();
-
-    const genArtistString = (track: trackItem) => {
-        let artistString = '';
-
-        track.artists.forEach((artist, index) => {
-            artistString += artist.name;
-            if (index != track.artists.length -1) artistString += ", ";
-        })
-
-        return artistString;
-    }
 </script>
 
 {#if tracks}
@@ -24,7 +13,7 @@
         <div class="w-full flex flex-row items-center justify-between">
             <img class="h-16 w-16 rounded-md" alt="Current Track" src={track.getImage} />
             <p class="font-semibold text-md text-taupe-200">{track.name}</p>
-            <p class="font-semibold text-md text-taupe-500">{genArtistString(track)}</p>
+            <p class="font-semibold text-md text-taupe-500">{track.getArtistString}</p>
         </div>
         {/each}
     </div>
