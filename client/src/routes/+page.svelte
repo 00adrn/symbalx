@@ -2,6 +2,6 @@
 
 </script>
 
-<div class="w-4/5 min-h-screen bg-taupe-700 p-2 flex flex-col gap-2 rounded-md rounded-tr-0">
-    <p class="text-taupe-200 text-2xl">Welcome to symbalx</p>
+<div class="w-full md:w-full min-h-screen bg-gray-200 px-4 py-4 md:px-64 flex flex-col gap-2">
+    <p class="text-violet-950 text-2xl">Welcome to symbalx</p>
 </div>

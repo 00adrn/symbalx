@@ -1,7 +1,9 @@
 <script lang="ts">
-    import { goto } from '$app/navigation'
-    import LineTextInput from '$lib/components/input/LineTextInput.svelte';
-    import PillButton from '$lib/components/navigation/PillButton.svelte';
+    import { Button } from "$lib/components/ui/button/index.js"
+    import { Input } from "$lib/components/ui/input/index.js"
+    import { Label } from "$lib/components/ui/label/index.js"
+    import * as Card from "$lib/components/ui/card/index.js"
+
 
     let emailInput: string = $state('');
     let passwordInput: string = $state('');
@@ -10,59 +12,66 @@
 
 </script>
 
-<div class="w-3/5 min-h-screen bg-taupe-700 p-4 flex flex-col gap-2 rounded-md">
-    <div class="w-full flex flex-col items-center justify-center gap-2">
-
-        <div class="w-1/2 flex flex-row gap-1 justify-evenly">
-            <button onclick={() => { isLogin = true; }}
-                class="w-1/2 rounded-md bg-taupe-500 py-1 font-bold text-taupe-200 border-4 border-taupe-800">
-                Login
-            </button>
-            <button onclick={() => { isLogin = false; }}
-                class="w-1/2 rounded-md bg-taupe-500 py-1 font-bold text-taupe-200 border-4 border-taupe-800">
-                Register
-            </button>
-        </div>
-
-        {#if isLogin}
-        <form class="w-1/2 flex flex-col gap-4 bg-taupe-800 p-2 rounded-md items-center justify-between text-taupe-200 text-xl
-                border-md border-taupe-200" method="POST" action="?/login">
-
-            <label class="text-taupe-200 font-semibold flex-col">
-                <p>Email:</p>
-                <input name="email" type="email" bind:value={emailInput}
-                    class="bg-taupe-500 rounded-md px-1">
-            </label>
-            <label class="text-taupe-200 font-semibold flex-col">
-                <p>Password:</p>
-                <input name="password" type="password" bind:value={passwordInput}
-                    class="bg-taupe-500 rounded-md px-1">
-            </label>
-
-            <button class="rounded-full bg-taupe-500 font-semibold px-16 py-1">Log in</button>
-        </form>
-        {:else}
-        <form class="w-1/2 flex flex-col gap-4 bg-taupe-800 p-2 rounded-md items-center justify-center text-taupe-200 text-xl
-                border-md border-taupe-200" method="POST" action="?/register">
-            
-            <label class="text-taupe-200 font-semibold flex-col">
-                <p>Username:</p>
-                <input name="username" type="text" bind:value={usernameInput}
-                    class="bg-taupe-500 rounded-md px-1">
-            </label>
-            <label class="text-taupe-200 font-semibold flex-col">
-                <p>Email:</p>
-                <input name="email" type="email" bind:value={emailInput}
-                    class="bg-taupe-500 rounded-md px-1">
-            </label>
-            <label class="text-taupe-200 font-semibold flex-col">
-                <p>Password:</p>
-                <input name="password" type="password" bind:value={passwordInput}
-                    class="bg-taupe-500 rounded-md px-1">
-            </label>
-
-            <button class="rounded-full bg-taupe-500 font-semibold px-16 py-1">Register</button>
-        </form>
-        {/if}
-    </div>
+<div class="w-full min-h-screen bg-gray-200 flex items-center justify-center p-4">
+	{#if isLogin}
+		<Card.Root class="w-full max-w-sm">
+			<Card.Header>
+				<Card.Title class="text-2xl">Login</Card.Title>
+				<Card.Description>Enter your email below to login to your account.</Card.Description>
+			</Card.Header>
+			<form method="POST" action="?/login">
+				<Card.Content class="grid gap-4">
+					<div class="grid gap-2">
+						<Label for="email">Email</Label>
+						<Input id="email" type="email" name="email" placeholder="m@example.com" required bind:value={emailInput} />
+					</div>
+					<div class="grid gap-2">
+						<Label for="password">Password</Label>
+						<Input id="password" type="password" name="password" required bind:value={passwordInput} />
+					</div>
+				</Card.Content>
+				<Card.Footer class="flex flex-col gap-4">
+					<Button type="submit" class="w-full">Sign in</Button>
+					<div class="mt-4 text-center text-sm">
+						Don't have an account?
+						<button type="button" onclick={() => isLogin = false} class="underline">
+							Sign up
+						</button>
+					</div>
+				</Card.Footer>
+			</form>
+		</Card.Root>
+	{:else}
+		<Card.Root class="w-full max-w-sm">
+			<Card.Header>
+				<Card.Title class="text-2xl">Sign Up</Card.Title>
+				<Card.Description>Enter your information to create an account.</Card.Description>
+			</Card.Header>
+			<form method="POST" action="?/register">
+				<Card.Content class="grid gap-4">
+					<div class="grid gap-2">
+						<Label for="username">Username</Label>
+						<Input id="username" name="username" placeholder="max_robinson" required bind:value={usernameInput} />
+					</div>
+					<div class="grid gap-2">
+						<Label for="email">Email</Label>
+						<Input id="email" type="email" name="email" placeholder="m@example.com" required bind:value={emailInput} />
+					</div>
+					<div class="grid gap-2">
+						<Label for="password">Password</Label>
+						<Input id="password" type="password" name="password" required bind:value={passwordInput} />
+					</div>
+				</Card.Content>
+				<Card.Footer class="flex flex-col gap-4">
+					<Button type="submit" class="w-full">Create account</Button>
+					<div class="mt-4 text-center text-sm">
+						Already have an account?
+						<button type="button" onclick={() => isLogin = true} class="underline">
+							Sign in
+						</button>
+					</div>
+				</Card.Footer>
+			</form>
+		</Card.Root>
+	{/if}
 </div>

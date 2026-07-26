@@ -130,9 +130,9 @@
 }
 
 .lc-root-container {
-	--color-primary: var(--color-taupe-600);
+	--color-primary: var(--color-purple-800);
 	--color-surface-100: var(--color-taupe-800);
 	--color-surface-200: var(--color-taupe-900);
 	--color-surface-300: var(--color-taupe-900);
-	--color-surface-content: var(--color-neutral-100);
+	--color-surface-content: var(--color-gray-900);
 }
